@@ -1,0 +1,40 @@
+# Local OS files
+.DS_Store
+
+# Secrets — never commit (standing rule: .env is always ignored)
+.env
+
+# Local caches / generated artifacts
+.cache/
+data/raw/
+
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# Documentation
+docs/
+Documentation/
+_README.md
+
+# test_code
+biz_intel/_spiders/
+
+# images
+*.png
+*.jpg
+screenshots/
+
+# Generated job-run manifests and client output
+runs/
+exports/
+
+# llm folders
+.claude/

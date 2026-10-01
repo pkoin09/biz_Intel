@@ -1,0 +1,29 @@
+version: 1
+name: commercial-cleaning-demo
+search:
+  query: commercial cleaning
+  cities:
+    - Denver, CO
+sources:
+  - csv
+processing:
+  deduplicate: true
+  enrich: false
+delivery:
+  include_non_accepted: true
+  include_sidecars: true
+source_options:
+  csv:
+    path: tests/fixtures/commercial_cleaning_messy_synthetic.csv
+output:
+  format: csv
+  fields:
+    - name
+    - category
+    - address
+    - city
+    - state
+    - phone
+    - email
+    - website
+  destination: exports/commercial-cleaning-demo.csv

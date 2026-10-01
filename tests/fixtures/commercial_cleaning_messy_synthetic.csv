@@ -1,0 +1,15 @@
+business_name,category,address,city,state,zip,phone,email,website,source_url,observed_at,rating,reviews
+Peak Office Care,commercial cleaning,1000 Market St,Denver,CO,80202,(303) 555-0101,hello@peakoffice.example.test,https://peakoffice.example.test,https://directory.example.test/peak-office-care,2026-09-28T10:00:00+00:00,4.8,31
+PEAK OFFICE CARE LLC,Office Cleaning,1000 market street,Denver,Colorado,80202,3035550101,HELLO@PEAKOFFICE.EXAMPLE.TEST,http://www.peakoffice.example.test,https://directory.example.test/peak-office-care,2026-09-28T10:00:00+00:00,4.8,31
+Mile High Janitorial,Commercial Cleaning,455 Blake St,Denver,CO,80205,303-555-0102,contact@milehighjanitorial.example.test,https://milehighjanitorial.example.test,https://directory.example.test/mile-high-janitorial,2026-09-28T10:00:00+00:00,4.5,18
+SparkleWorks,,700 17th St Suite 200,Denver,CO,80202,+1 303 555 0103,info@sparkleworks.example.test,https://sparkleworks.example.test,https://directory.example.test/sparkleworks,2026-09-28T10:00:00+00:00,4.2,9
+Front Range Facility Services,janitorial services,42 W Colfax Ave,Denver,CO,80204,303.555.0104,ops@front-range.example.test,www.frontrangefacility.example.test,https://directory.example.test/front-range-facility,2026-09-28T10:00:00+00:00,4.7,22
+Blue Broom Cleaning,Commercial Cleaning,1818 Larimer St,Denver,CO,80202,3035550105,blue broom at example.test,https://bluebroom.example.test,https://directory.example.test/blue-broom,2026-09-28T10:00:00+00:00,4.0,6
+Clean Slate Commercial,office cleaning,901 W 8th Ave,Denver,CO,80204,,team@cleanslate.example.test,https://cleanslate.example.test,https://directory.example.test/clean-slate,2026-09-28T10:00:00+00:00,4.6,14
+NightShift Custodial,janitorial,1600 Broadway,Denver,CO,80202,3035550107,,https://nightshift.example.test,https://directory.example.test/nightshift,2026-09-28T10:00:00+00:00,4.1,11
+Green Mop Co,commercial cleaning,2500 Welton St,Denver,CO,80205,3035550108,team@greenmop.example.test,https://greenmop.example.test,,,4.3,12
+Denver Detail Crew,Commercial Cleaning,1111 Lincoln St,Denver,CO,80203,3035550109,hello@denverdetail.example.test,https://denverdetail.example.test,https://directory.example.test/denver-detail,not-a-date,4.4,15
+Alpine Building Care,Facility Maintenance,3000 E 1st Ave,Denver,CO,80206,3035550110,care@alpinebuilding.example.test,https://alpinebuilding.example.test,https://directory.example.test/alpine-building,2026-09-28T10:00:00+00:00,4.9,27
+Tidy Summit,Office Cleaning,88 Speer Blvd,Denver,CO,80204,3035550111,info@tidysummit.example.test,https://tidysummit.example.test,https://directory.example.test/tidy-summit,2026-09-28T10:00:00+00:00,4.3,8
+Mile High Janitorial,Commercial Cleaning,455 Blake Street,Denver,CO,80205,3035550102,contact@milehighjanitorial.example.test,https://milehighjanitorial.example.test,https://directory.example.test/mile-high-janitorial,2026-09-28T10:00:00+00:00,4.5,18
+,,Denver,CO,80202,,,,https://directory.example.test/unknown,2026-09-28T10:00:00+00:00,,

@@ -1,0 +1,18 @@
+{
+  "fixtures": [
+    {
+      "source": "google-apify",
+      "path": "apify_google_maps_example.json",
+      "sha256": "9842a042ded588f6ed831b5f4c445e60e2f2c7f66f2444873e5cde8dc5568e83",
+      "sanitization": "synthetic",
+      "contains_real_contact_data": false
+    },
+    {
+      "source": "yelp-apify",
+      "path": "apify_yelp_headply_example.json",
+      "sha256": "ae9761fbd8a50147e5d2638579296197f35fcad1ea0bc1444436d5a461a37dc5",
+      "sanitization": "synthetic",
+      "contains_real_contact_data": false
+    }
+  ]
+}

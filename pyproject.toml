@@ -1,0 +1,32 @@
+[project]
+name = "biz-intel"
+version = "0.7.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4",
+    "duckdb",
+    "httpx",
+    "openpyxl",
+    "pandas",
+    "parsel",
+    "playwright",
+    "PyYAML>=6.0",
+    "python-dotenv",
+    "scrapy",
+    "scrapy-playwright",
+    "supabase",
+]
+
+[project.scripts]
+biz-intel = "biz_intel.cli:main"
+
+[tool.uv]
+package = true
+
+[tool.setuptools.packages.find]
+include = ["biz_intel*"]
+
+[tool.setuptools]
+py-modules = ["main"]

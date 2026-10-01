@@ -1,0 +1,12 @@
+scrapy
+scrapy-playwright
+playwright
+supabase
+duckdb
+pandas
+python-dotenv
+openpyxl
+httpx
+beautifulsoup4
+parsel
+PyYAML>=6.0

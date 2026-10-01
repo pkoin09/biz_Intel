@@ -1,0 +1,17 @@
+[
+  {
+    "title": "Example Dental Studio",
+    "categoryName": "Dentist",
+    "street": "100 Example Avenue",
+    "city": "Exampletown",
+    "state": "CA",
+    "postalCode": "90000",
+    "countryCode": "US",
+    "phone": "+1 555 010 0100",
+    "website": "https://dental.example.test",
+    "totalScore": 4.7,
+    "reviewsCount": 12,
+    "url": "https://maps.example.test/place/example-dental-studio",
+    "placeId": "example-place-id"
+  }
+]

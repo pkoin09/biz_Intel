@@ -1,0 +1,26 @@
+version: 1
+name: client-business-import
+search:
+  query: local businesses
+  cities:
+    - San Jose, CA
+sources:
+  - csv
+processing:
+  deduplicate: true
+  enrich: false
+delivery:
+  # The repository CSV has no per-row evidence URL/timestamp. Keep it visible
+  # as an import-review example; a client delivery should leave this false.
+  include_non_accepted: true
+source_options:
+  csv:
+    # A synthetic fixture; replace it with a client-supplied file for a job.
+    path: tests/fixtures/businesses_messy_synthetic.csv
+output:
+  format: csv
+  fields:
+    - name
+    - phone
+    - website
+  destination: exports/client-business-import.csv

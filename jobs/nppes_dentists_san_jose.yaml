@@ -1,0 +1,30 @@
+version: 1
+name: nppes-dentists-san-jose-pilot
+search:
+  query: Dentist
+  cities:
+    - San Jose, CA
+sources:
+  - nppes
+processing:
+  deduplicate: true
+  enrich: false
+delivery:
+  include_non_accepted: false
+  include_sidecars: true
+limits:
+  total_records: 100
+  per_source_records: 100
+  per_location_records: 100
+output:
+  format: csv
+  fields:
+    - name
+    - category
+    - address
+    - city
+    - state
+    - postal_code
+    - phone
+    - source_url
+  destination: exports/nppes-dentists-san-jose-pilot.csv

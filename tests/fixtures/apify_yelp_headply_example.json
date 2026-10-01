@@ -1,0 +1,34 @@
+[
+  {
+    "type": "business",
+    "id": "example-yelp-id",
+    "alias": "example-cafe-exampletown",
+    "url": "https://yelp.example.test/biz/example-cafe-exampletown",
+    "name": "Example Cafe",
+    "rating": 4.2,
+    "reviewCount": 34,
+    "categories": ["Cafes", "Breakfast & Brunch"],
+    "phone": "+1 555 010 0110",
+    "website": "https://cafe.example.test",
+    "address": {
+      "street": "200 Example Street",
+      "city": "Exampletown",
+      "region": "TX",
+      "postalCode": "73301",
+      "country": "US"
+    },
+    "searchTerm": "cafes",
+    "searchLocation": "Exampletown, TX"
+  },
+  {
+    "type": "business",
+    "url": null,
+    "name": "No Website Example",
+    "rating": null,
+    "reviewCount": null,
+    "categories": [],
+    "phone": null,
+    "website": null,
+    "address": null
+  }
+]
