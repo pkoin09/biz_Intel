@@ -6,7 +6,7 @@ from .budget import CostLine, EnrichmentBudget
 from .cache import PlaceDetailsCache
 from .contact import ContactEnricher
 from .runner import EnrichmentRunner
-from .social import SocialEnricher
+from .social import FirstPartyWebsiteCrawler, SocialEnricher
 
 __all__ = [
     "ContactEnricher",
@@ -15,4 +15,5 @@ __all__ = [
     "EnrichmentRunner",
     "PlaceDetailsCache",
     "SocialEnricher",
+    "FirstPartyWebsiteCrawler",
 ]

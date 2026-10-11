@@ -43,15 +43,17 @@ class SocialEnricher:
         respect_robots: bool = True,
         max_pages: int = _MAX_PAGES,
     ) -> None:
-        self._http_get = http_get or httpx.get
-        self._respect_robots = respect_robots
-        self._max_pages = max(1, max_pages)
+        self._crawler = FirstPartyWebsiteCrawler(
+            http_get,
+            respect_robots=respect_robots,
+            max_pages=max_pages,
+        )
 
     def enrich(self, business: Business) -> Business:
         if not business.website or self._all_populated(business):
             return business
 
-        pages = self._crawl(business.website)
+        pages = self._crawler.crawl(business.website)
         if not pages:
             return business
 
@@ -119,7 +121,21 @@ class SocialEnricher:
                     updates[field] = _normalise(match.group())
                     evidence[field] = _first_party_evidence(page_url)
 
-    def _crawl(self, url: str) -> list[tuple[str, str]]:
+class FirstPartyWebsiteCrawler:
+    """Fetch a small set of same-origin public pages from a business website."""
+
+    def __init__(
+        self,
+        http_get: HttpGet | None = None,
+        *,
+        respect_robots: bool = True,
+        max_pages: int = _MAX_PAGES,
+    ) -> None:
+        self._http_get = http_get or httpx.get
+        self._respect_robots = respect_robots
+        self._max_pages = max(1, max_pages)
+
+    def crawl(self, url: str) -> list[tuple[str, str]]:
         homepage = _normalise_site_url(url)
         if not homepage:
             return []

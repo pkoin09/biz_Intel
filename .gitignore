@@ -1,4 +1,7 @@
-# Local OS files
+# Local development files
+CLAUDE.md
+CURRENT_CONTEXT.md
+rules.md
 .DS_Store
 
 # Secrets — never commit (standing rule: .env is always ignored)
@@ -7,6 +10,7 @@
 # Local caches / generated artifacts
 .cache/
 data/raw/
+data/overture/
 
 # Python-generated files
 __pycache__/

@@ -9,8 +9,12 @@ from biz_intel.core.registry import SourceRegistry
 from biz_intel.core.source_kind import SourceKind
 from biz_intel.core.source_name import SourceName
 from biz_intel.core.source_policy import CLIENT_INPUT_POLICY
+from biz_intel.core.source_policy import CA_DENTAL_BOARD_POLICY
 from biz_intel.core.source_policy import EXPERIMENTAL_OR_DISALLOWED_POLICY
+from biz_intel.core.source_policy import NPPES_POLICY
+from biz_intel.core.source_policy import SourceRole
 from biz_intel.core.source_policy import SourcePolicyError
+from biz_intel.core.source_policy import WA_LI_POLICY
 from biz_intel.core.source_task import SourceTask
 
 
@@ -117,6 +121,21 @@ class SourceRegistryTests(unittest.TestCase):
 
         with self.assertRaisesRegex(SourcePolicyError, "not zero-spend"):
             registry.require_live_smoke_approval(("paid",))
+
+    def test_source_policies_declare_operational_roles(self) -> None:
+        self.assertEqual(CLIENT_INPUT_POLICY.roles, (SourceRole.CANDIDATE,))
+        self.assertEqual(
+            NPPES_POLICY.roles,
+            (SourceRole.CANDIDATE, SourceRole.REGISTRY),
+        )
+        self.assertEqual(
+            WA_LI_POLICY.roles,
+            (SourceRole.CANDIDATE, SourceRole.REGISTRY),
+        )
+        self.assertEqual(
+            CA_DENTAL_BOARD_POLICY.roles,
+            (SourceRole.REGISTRY, SourceRole.VERIFIER),
+        )
 
 
 if __name__ == "__main__":

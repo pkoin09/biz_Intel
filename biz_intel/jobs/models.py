@@ -19,6 +19,8 @@ EXPORTABLE_BUSINESS_FIELDS = BUSINESS_FIELDS - {
     "raw_data",
     "field_provenance",
     "quality_reasons",
+    "claims",
+    "source_ids",
 }
 
 
@@ -103,17 +105,37 @@ class JobPhoneVerification:
     """Explicit configuration for a post-dedup phone verification provider."""
 
     provider: str = ""
+    # Legacy service-only names remain readable while existing jobs migrate.
     api_key_service: str = ""
     api_secret_service: str = ""
+    credential_service: str = ""
+    api_key_account: str = ""
+    api_secret_account: str = ""
 
     @property
     def enabled(self) -> bool:
         return bool(self.provider)
 
+    @property
+    def uses_account_scoped_credentials(self) -> bool:
+        return bool(self.credential_service)
+
 
 @dataclass(frozen=True, slots=True)
 class JobVerification:
     phone: JobPhoneVerification = field(default_factory=JobPhoneVerification)
+
+
+@dataclass(frozen=True, slots=True)
+class JobComposition:
+    """Explicit, evidence-only cross-source matching configuration."""
+
+    primary_source: str = ""
+    supplemental_sources: tuple[str, ...] = ()
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.primary_source)
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,6 +153,7 @@ class JobSpec:
     limits: JobLimits = field(default_factory=JobLimits)
     budget: JobBudget = field(default_factory=JobBudget)
     verification: JobVerification = field(default_factory=JobVerification)
+    composition: JobComposition = field(default_factory=JobComposition)
     source_options: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
@@ -174,6 +197,9 @@ class JobSpec:
         verification_data = data.get("verification", {})
         if not isinstance(verification_data, dict):
             raise ValueError("Job verification must be a mapping.")
+        composition_data = data.get("composition", {})
+        if not isinstance(composition_data, dict):
+            raise ValueError("Job composition must be a mapping.")
 
         search = JobSearch(
             query=cls._required_string(search_data, "query"),
@@ -229,6 +255,7 @@ class JobSpec:
         limits = cls._limits(data, limits_data)
         budget = cls._budget(budget_data)
         verification = cls._verification(verification_data)
+        composition = cls._composition(composition_data, sources, delivery)
 
         source_options = cls._source_options(data)
         cls._validate_live_smoke_zero_spend(
@@ -248,6 +275,7 @@ class JobSpec:
             limits=limits,
             budget=budget,
             verification=verification,
+            composition=composition,
             source_options=source_options,
         )
 
@@ -462,11 +490,59 @@ class JobSpec:
             return JobVerification()
         if provider != "twilio_lookup_basic":
             raise ValueError("Job verification.phone.provider is unsupported.")
+
+        scoped_fields = (
+            "credential_service",
+            "api_key_account",
+            "api_secret_account",
+        )
+        has_scoped_configuration = any(field in phone_data for field in scoped_fields)
+        if has_scoped_configuration:
+            credential_service = JobSpec._required_string(
+                phone_data, "credential_service"
+            )
+            api_key_account = JobSpec._required_string(phone_data, "api_key_account")
+            api_secret_account = JobSpec._required_string(
+                phone_data, "api_secret_account"
+            )
+            return JobVerification(
+                phone=JobPhoneVerification(
+                    provider=provider,
+                    credential_service=credential_service,
+                    api_key_account=api_key_account,
+                    api_secret_account=api_secret_account,
+                )
+            )
+
         key_service = JobSpec._required_string(phone_data, "api_key_service")
         secret_service = JobSpec._required_string(phone_data, "api_secret_service")
         return JobVerification(
-            phone=JobPhoneVerification(provider, key_service, secret_service)
+            phone=JobPhoneVerification(
+                provider=provider,
+                api_key_service=key_service,
+                api_secret_service=secret_service,
+            )
         )
+
+    @staticmethod
+    def _composition(
+        data: dict[str, Any],
+        sources: tuple[str, ...],
+        delivery: JobDelivery,
+    ) -> JobComposition:
+        if not data:
+            return JobComposition()
+        primary = JobSpec._required_string(data, "primary_source")
+        supplemental = JobSpec._string_list(data, "supplemental_sources")
+        if not supplemental:
+            raise ValueError("Job composition.supplemental_sources must not be empty.")
+        if primary not in sources or any(source not in sources for source in supplemental):
+            raise ValueError("Job composition sources must be listed in job sources.")
+        if primary in supplemental or len(set(supplemental)) != len(supplemental):
+            raise ValueError("Job composition sources must be distinct.")
+        if not delivery.include_sidecars:
+            raise ValueError("Job composition requires delivery.include_sidecars.")
+        return JobComposition(primary_source=primary, supplemental_sources=supplemental)
 
     @staticmethod
     def _validate_paid_enrichment(

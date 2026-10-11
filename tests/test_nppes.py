@@ -20,7 +20,12 @@ def _record(*, city: str = "SAN JOSE", taxonomy: str = "Dentist") -> dict:
             "city": city, "state": "CA", "postal_code": "95112",
             "country_name": "United States", "telephone_number": "4085551212",
         }],
-        "taxonomies": [{"primary": True, "desc": taxonomy}],
+        "taxonomies": [{
+            "primary": True,
+            "desc": taxonomy,
+            "license": "DDS12345",
+            "state": "CA",
+        }],
     }
 
 
@@ -43,6 +48,29 @@ class NppesSourceTests(unittest.TestCase):
         incomplete = _record()
         incomplete["addresses"][0]["telephone_number"] = ""
         self.assertIsNone(self.source._to_business(incomplete))
+
+    def test_retains_npi_and_california_dental_license_as_evidence(self) -> None:
+        business = self.source._to_business(_record())
+        assert business is not None
+        self.assertEqual(
+            business.source_ids,
+            {"npi": "1234567890", "ca_dental_license": "DDS12345"},
+        )
+        self.assertEqual(
+            {claim.key for claim in business.claims},
+            {
+                "registry.nppes.npi",
+                "registry.nppes.license_number",
+                "registry.nppes.license_state",
+            },
+        )
+
+    def test_does_not_label_non_california_license_as_california_dental(self) -> None:
+        record = _record()
+        record["taxonomies"][0]["state"] = "NV"
+        business = self.source._to_business(record)
+        assert business is not None
+        self.assertEqual(business.source_ids, {"npi": "1234567890"})
 
     def test_connector_policy_is_narrow_and_zero_spend(self) -> None:
         self.assertEqual(NPPES_POLICY.source_class, SourceClass.OFFICIAL_REGISTRY)

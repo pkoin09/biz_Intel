@@ -13,6 +13,23 @@ def _business(name: str, address: str) -> Business:
 
 
 class FuzzyDeduplicationTests(unittest.TestCase):
+    def test_exact_duplicate_retains_each_discovery_source(self) -> None:
+        first = Business(
+            name="Bay Veterinary",
+            website="https://bayvet.example.test",
+            source="overture",
+        )
+        second = Business(
+            name="Bay Veterinary",
+            website="https://bayvet.example.test",
+            source="google",
+        )
+
+        result = list(PipelineRunner().run(iter([first, second])))
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].discovery_sources, ("overture", "google"))
+
     def test_high_confidence_variant_merges_only_when_enabled(self) -> None:
         records = [_business("Peak Office Care", "1000 Market St"), _business("Peak Office Care LLC", "1000 Market St")]
         self.assertEqual(len(list(PipelineRunner().run(iter(records)))), 2)

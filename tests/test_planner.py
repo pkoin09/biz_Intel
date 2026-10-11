@@ -13,7 +13,7 @@ from biz_intel.jobs.planner import Planner
 
 SAMPLE_JOB = (
     Path(__file__).resolve().parents[1]
-    / "jobs/dentists_san_jose.yaml"
+    / "jobs/commercial_cleaning.yaml"
 )
 
 
@@ -33,11 +33,11 @@ class PlannerTests(unittest.TestCase):
         task = tasks[0]
 
         self.assertEqual(task.source, SourceName.CSV)
-        self.assertEqual(task.category, "local businesses")
+        self.assertEqual(task.category, "commercial cleaning")
         self.assertIsNone(task.limit)
 
-        self.assertEqual(task.location.city, "San Jose")
-        self.assertEqual(task.location.state, "CA")
+        self.assertEqual(task.location.city, "Denver")
+        self.assertEqual(task.location.state, "CO")
 
     def test_plans_state_only_task(self) -> None:
         job = JobSpec.from_dict(

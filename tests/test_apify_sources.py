@@ -97,7 +97,24 @@ class GoogleMapsApifySourceTests(unittest.TestCase):
         list(GoogleMapsApifySource(self._make_task()).fetch())
 
         url = mock_post.call_args[0][0]
-        self.assertIn("apify~google-maps-scraper", url)
+        self.assertIn("compass~crawler-google-places", url)
+
+    @patch("biz_intel.core.apify_source.config")
+    @patch("biz_intel.core.apify_source.httpx.post")
+    def test_authentication_uses_header_not_request_url(self, mock_post, mock_config) -> None:
+        mock_config.APIFY_API_KEY = "test-secret-key"
+        mock_post.return_value = _fake_response([])
+
+        list(GoogleMapsApifySource(self._make_task()).fetch())
+
+        url = mock_post.call_args[0][0]
+        request = mock_post.call_args[1]
+        self.assertNotIn("test-secret-key", url)
+        self.assertNotIn("token", request["params"])
+        self.assertEqual(
+            request["headers"],
+            {"Authorization": "Bearer test-secret-key"},
+        )
 
     @patch("biz_intel.core.apify_source.config")
     @patch("biz_intel.core.apify_source.httpx.post")

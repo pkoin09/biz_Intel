@@ -9,6 +9,7 @@ import httpx
 
 from biz_intel.core.api_source import BaseApiSource
 from biz_intel.models.business import Business
+from biz_intel.models.claim import Claim
 
 _API_URL = "https://npiregistry.cms.hhs.gov/api/"
 _PROVIDER_URL = "https://npiregistry.cms.hhs.gov/provider-view/{}"
@@ -79,9 +80,51 @@ class NppesSource(BaseApiSource):
         state = str(location.get("state") or "").strip()
         if not all((name, address, city, state, phone)):
             return None
+        observed_at = datetime.now(timezone.utc)
+        primary = _primary_taxonomy_record(record)
+        license_number = _taxonomy_text(primary, "license")
+        license_state = _taxonomy_text(primary, "state").upper()
+        claims = [
+            Claim(
+                key="registry.nppes.npi",
+                value=number,
+                source="nppes",
+                source_record_id=number,
+                evidence_url=_PROVIDER_URL.format(number),
+                observed_at=observed_at,
+                authority="official_registry",
+            )
+        ]
+        if license_number:
+            claims.append(Claim(
+                key="registry.nppes.license_number",
+                value=license_number,
+                source="nppes",
+                source_record_id=number,
+                evidence_url=_PROVIDER_URL.format(number),
+                observed_at=observed_at,
+                authority="source_observation",
+            ))
+        if license_state:
+            claims.append(Claim(
+                key="registry.nppes.license_state",
+                value=license_state,
+                source="nppes",
+                source_record_id=number,
+                evidence_url=_PROVIDER_URL.format(number),
+                observed_at=observed_at,
+                authority="source_observation",
+            ))
+        source_ids = {"npi": number}
+        if (
+            license_number
+            and license_state == "CA"
+            and "dentist" in _taxonomy_text(primary, "desc").casefold()
+        ):
+            source_ids["ca_dental_license"] = license_number
         return Business(
             name=name,
-            category=_primary_taxonomy(record),
+            category=_taxonomy_text(primary, "desc"),
             address=address,
             city=city,
             state=state,
@@ -90,13 +133,23 @@ class NppesSource(BaseApiSource):
             phone=phone,
             source="nppes",
             source_url=_PROVIDER_URL.format(number),
-            observed_at=datetime.now(timezone.utc),
+            observed_at=observed_at,
+            claims=tuple(claims),
+            source_ids=source_ids,
             raw_data=record,
         )
 
 
 def _primary_taxonomy(record: dict) -> str:
+    return _taxonomy_text(_primary_taxonomy_record(record), "desc")
+
+
+def _primary_taxonomy_record(record: dict) -> dict:
     for taxonomy in record.get("taxonomies", []):
         if isinstance(taxonomy, dict) and taxonomy.get("primary"):
-            return str(taxonomy.get("desc") or "").strip()
-    return ""
+            return taxonomy
+    return {}
+
+
+def _taxonomy_text(taxonomy: dict, key: str) -> str:
+    return str(taxonomy.get(key) or "").strip()

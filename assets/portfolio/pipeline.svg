@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 620" role="img" aria-labelledby="t d" font-family="-apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title id="t">How a Biz Intel run works</title>
+  <desc id="d">A preflight check precedes a run. Records move from sources through validation, deduplication, optional enrichment, and classification to four output files. Source policy, spend cap, and evidence apply throughout.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto">
+      <path d="M0 0L10 5L0 10z" fill="#475569"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="620" rx="16" fill="#f8fafc"/>
+
+  <!-- Preflight -->
+  <rect x="40" y="30" width="1120" height="56" rx="10" fill="#fff" stroke="#94a3b8" stroke-dasharray="6 4"/>
+  <text x="60" y="64" font-size="16" font-weight="700" fill="#0f2540">Preflight</text>
+  <text x="150" y="64" font-size="14" fill="#475569">Plans source tasks, record ceilings, and cost limits. Makes no source, Keychain, or provider request.</text>
+  <line x1="140" y1="86" x2="140" y2="134" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+  <text x="154" y="116" font-size="13" fill="#475569">then run</text>
+
+  <!-- Pipeline -->
+  <g stroke-width="2">
+    <rect x="40" y="140" width="200" height="100" rx="12" fill="#eef4fb" stroke="#9db8d6"/>
+    <rect x="270" y="140" width="200" height="100" rx="12" fill="#eef4fb" stroke="#9db8d6"/>
+    <rect x="500" y="140" width="200" height="100" rx="12" fill="#eef4fb" stroke="#9db8d6"/>
+    <rect x="730" y="140" width="200" height="100" rx="12" fill="#f4f7fb" stroke="#9db8d6" stroke-dasharray="6 4"/>
+    <rect x="960" y="140" width="200" height="100" rx="12" fill="#ecf8f1" stroke="#8cc9a8"/>
+  </g>
+  <g text-anchor="middle" fill="#0f2540">
+    <text x="140" y="178" font-size="16" font-weight="700">Source plugins</text>
+    <text x="370" y="178" font-size="16" font-weight="700">Validate &amp; normalize</text>
+    <text x="600" y="178" font-size="16" font-weight="700">Deduplicate</text>
+    <text x="830" y="178" font-size="16" font-weight="700">Enrich &amp; check</text>
+    <text x="1060" y="178" font-size="16" font-weight="700">Classify &amp; export</text>
+  </g>
+  <g text-anchor="middle" font-size="13" fill="#475569">
+    <text x="140" y="204">e.g. CSV, registry, API,</text>
+    <text x="140" y="222">snapshot, or your own</text>
+    <text x="370" y="204">One Business schema</text>
+    <text x="600" y="204">Duplicates are marked</text>
+    <text x="830" y="204">Optional: website links,</text>
+    <text x="830" y="222">phone check</text>
+    <text x="1060" y="204">Status and reason</text>
+    <text x="1060" y="222">for every record</text>
+  </g>
+  <g stroke="#475569" stroke-width="2" marker-end="url(#a)">
+    <line x1="242" y1="190" x2="266" y2="190"/>
+    <line x1="472" y1="190" x2="496" y2="190"/>
+    <line x1="702" y1="190" x2="726" y2="190"/>
+    <line x1="932" y1="190" x2="956" y2="190"/>
+  </g>
+
+  <!-- Fan-out to outputs -->
+  <g stroke="#475569" stroke-width="2" fill="none">
+    <path d="M1060 242 V270 H172 M742 270 H1027 M457 270 H457"/>
+  </g>
+  <g stroke="#475569" stroke-width="2" marker-end="url(#a)">
+    <line x1="172" y1="270" x2="172" y2="298"/>
+    <line x1="457" y1="270" x2="457" y2="298"/>
+    <line x1="742" y1="270" x2="742" y2="298"/>
+    <line x1="1027" y1="270" x2="1027" y2="298"/>
+  </g>
+
+  <!-- Outputs -->
+  <g fill="#fff" stroke="#9db8d6" stroke-width="2">
+    <rect x="40" y="302" width="265" height="70" rx="10"/>
+    <rect x="325" y="302" width="265" height="70" rx="10"/>
+    <rect x="610" y="302" width="265" height="70" rx="10"/>
+    <rect x="895" y="302" width="265" height="70" rx="10"/>
+  </g>
+  <g text-anchor="middle" fill="#0f2540" font-size="15" font-weight="700">
+    <text x="172" y="332">Export</text>
+    <text x="457" y="332">Quality sidecar</text>
+    <text x="742" y="332">Evidence sidecar</text>
+    <text x="1027" y="332">Summary</text>
+  </g>
+  <g text-anchor="middle" fill="#475569" font-size="12.5">
+    <text x="172" y="354">CSV or JSON, accepted records</text>
+    <text x="457" y="354">status and reason for every record</text>
+    <text x="742" y="354">source and URL for each field</text>
+    <text x="1027" y="354">counts and field completeness</text>
+  </g>
+  <text x="600" y="396" text-anchor="middle" font-size="13" fill="#475569" font-family="ui-monospace, Menlo, Consolas, monospace">exports/&lt;job-name&gt;/&lt;run-id&gt;/</text>
+
+  <!-- Governance rails -->
+  <text x="40" y="428" font-size="14" font-weight="700" fill="#0f2540">Applies to the whole run</text>
+  <g fill="#fff" stroke="#cbd5e1" stroke-width="1.5">
+    <rect x="40" y="440" width="1120" height="44" rx="8"/>
+    <rect x="40" y="494" width="1120" height="44" rx="8"/>
+    <rect x="40" y="548" width="1120" height="44" rx="8"/>
+  </g>
+  <rect x="40" y="440" width="8" height="44" rx="4" fill="#3b6ea5"/>
+  <rect x="40" y="494" width="8" height="44" rx="4" fill="#d08a1e"/>
+  <rect x="40" y="548" width="8" height="44" rx="4" fill="#2f9d6a"/>
+  <g font-size="15" font-weight="700" fill="#0f2540">
+    <text x="66" y="468">Source policy</text>
+    <text x="66" y="522">Spend cap</text>
+    <text x="66" y="576">Evidence</text>
+  </g>
+  <g font-size="14" fill="#475569">
+    <text x="220" y="468">Each source declares its retention, rate, attribution, and cost limits.</text>
+    <text x="220" y="522">Paid sources and checks are off by default and stop at their cap, even partway through a run.</text>
+    <text x="220" y="576">The evidence sidecar records source, URL, observation time, and collection method per field.</text>
+  </g>
+</svg>

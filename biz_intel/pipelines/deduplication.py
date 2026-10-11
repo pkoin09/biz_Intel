@@ -34,11 +34,21 @@ class DeduplicationPipeline(Pipeline):
 
         for business in businesses:
 
+            business.discovery_sources = _sources(business)
+
             key = self.strategy.key(
                 business,
             )
 
             if key in seen:
+                existing = next(
+                    item for item in retained if self.strategy.key(item) == key
+                )
+                existing.discovery_sources = tuple(
+                    dict.fromkeys(
+                        (*existing.discovery_sources, *business.discovery_sources)
+                    )
+                )
                 # Temporary debug print
                 metrics.increment("duplicates_removed",)
                 # TODO:
@@ -76,3 +86,13 @@ class DeduplicationPipeline(Pipeline):
 def _comparison_name(value: str) -> str:
     tokens = value.casefold().replace(".", "").split()
     return " ".join(token for token in tokens if token not in {"llc", "inc", "ltd"})
+
+
+def _sources(business: Business) -> tuple[str, ...]:
+    return tuple(
+        dict.fromkeys(
+            source
+            for source in (*business.discovery_sources, business.source)
+            if source
+        )
+    )

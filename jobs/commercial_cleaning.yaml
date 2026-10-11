@@ -9,8 +9,14 @@ sources:
 processing:
   deduplicate: true
   enrich: false
+verification:
+  phone:
+    provider: twilio_lookup_basic
+    credential_service: biz-intel
+    api_key_account: TWILIO_API_KEY
+    api_secret_account: TWILIO_API_SECRET
 delivery:
-  include_non_accepted: true
+  include_non_accepted: false
   include_sidecars: true
 source_options:
   csv:
@@ -22,8 +28,6 @@ output:
     - category
     - address
     - city
-    - state
     - phone
-    - email
     - website
   destination: exports/commercial-cleaning-demo.csv

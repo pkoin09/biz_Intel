@@ -13,6 +13,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from biz_intel.credentials import load_provider_credential
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -37,19 +39,19 @@ class Config:
     # Google
     # --------------------------------------------------
 
-    GOOGLE_PLACES_API_KEY: str = os.getenv("GOOGLE_PLACES_API_KEY", "")
+    GOOGLE_PLACES_API_KEY: str = load_provider_credential("GOOGLE_PLACES_API_KEY")
 
     # --------------------------------------------------
     # Yelp
     # --------------------------------------------------
 
-    YELP_API_KEY: str = os.getenv("YELP_API_KEY", "")
+    YELP_API_KEY: str = load_provider_credential("YELP_API_KEY")
 
     # --------------------------------------------------
     # Apify
     # --------------------------------------------------
 
-    APIFY_API_KEY: str = os.getenv("APIFY_API_KEY", "")
+    APIFY_API_KEY: str = load_provider_credential("APIFY_API_KEY")
 
     # --------------------------------------------------
     # Cache
@@ -61,9 +63,9 @@ class Config:
     # Supabase
     # --------------------------------------------------
 
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_URL: str = load_provider_credential("SUPABASE_URL")
 
-    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
+    SUPABASE_KEY: str = load_provider_credential("SUPABASE_KEY")
 
     # --------------------------------------------------
     # Playwright

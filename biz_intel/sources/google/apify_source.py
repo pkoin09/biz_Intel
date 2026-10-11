@@ -4,8 +4,8 @@ Google Maps source backed by the Apify google-maps-scraper actor.
 Returns name, address, phone, website, rating, and category in a single
 actor run — no separate Place Details call required.
 
-Actor: apify/google-maps-scraper
-Marketplace: https://apify.com/apify/google-maps-scraper
+Actor: compass/crawler-google-places
+Marketplace: https://apify.com/compass/crawler-google-places
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ _APIFY_LIMIT_MAX = 200
 class GoogleMapsApifySource(BaseApifySource):
 
     source_name = "google-apify"
-    actor_id = "apify/google-maps-scraper"
+    actor_id = "compass/crawler-google-places"
 
     def _build_actor_input(self) -> dict:
         query = self._build_query()

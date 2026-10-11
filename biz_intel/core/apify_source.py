@@ -47,8 +47,8 @@ class BaseApifySource(BaseApiSource):
 
         response = httpx.post(
             url,
+            headers={"Authorization": f"Bearer {api_key}"},
             params={
-                "token": api_key,
                 "format": "json",
                 "clean": "true",
                 "timeout": _RUN_TIMEOUT_SECONDS,

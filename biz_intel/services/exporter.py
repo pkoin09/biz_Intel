@@ -27,6 +27,7 @@ class DeliveryExportResult:
     quality_destination: Path | None
     evidence_destination: Path | None
     summary_destination: Path | None = None
+    composition_destination: Path | None = None
 
 
 def export(
@@ -62,6 +63,7 @@ def export_delivery(
     include_non_accepted: bool,
     include_sidecars: bool,
     summary_payload: dict[str, object] | None = None,
+    composition_payload: dict[str, object] | None = None,
 ) -> DeliveryExportResult:
     """Write a client main file and optional quality/evidence sidecars.
 
@@ -88,6 +90,7 @@ def export_delivery(
             None,
             None,
             summary_destination,
+            None,
         )
 
     quality_destination = _sidecar_destination(destination, "quality")
@@ -98,12 +101,17 @@ def export_delivery(
     evidence_destination.write_text(
         json.dumps([provenance_payload(item) for item in businesses], indent=2)
     )
+    composition_destination = None
+    if composition_payload is not None:
+        composition_destination = _sidecar_destination(destination, "composition")
+        composition_destination.write_text(json.dumps(composition_payload, indent=2))
     return DeliveryExportResult(
         destination,
         record_count,
         quality_destination,
         evidence_destination,
         summary_destination,
+        composition_destination,
     )
 
 

@@ -1,452 +1,321 @@
 # Biz Intel
 
-A policy-gated pipeline for turning business records into clean, auditable
-client exports. It normalises canonical records, can enrich them using permitted
-content from public first-party business websites, and exports only the fields
-requested by the client.
+Biz Intel ingests business records from one or more approved sources,
+normalizes them into one `Business` schema, removes duplicates, optionally
+enriches or checks them, and exports the result with the evidence behind each
+field.
 
-Biz Intel is not designed to bypass source restrictions. Before a source can
-participate in a client-delivery run, it must have an explicit, approved policy
-covering delivery rights, export use, retention, test fixtures, rate limits,
-and cost.
+It is a framework for producing scoped, auditable client datasets—not a tool
+for bypassing a website’s rules or building an unaccountable contact database.
 
-In this repository, **approved** means that the person or team operating Biz
-Intel has reviewed a source and the client's intended use, then encoded the
-result in that source's `SourcePolicy`. The software enforces that decision; it
-does not decide that a dataset is lawful to use or grant anyone data rights.
+## Concepts
 
-### Is this a scraper?
+**Source.** A plugin that reads records from one place: a CSV, registry, API,
+or local snapshot. Each source converts its input into `Business` records.
 
-Not as a general-purpose, ready-to-run scraper. The client-delivery inputs
-currently enabled are:
+**Source policy.** Every source declares a `SourcePolicy` in code. It records
+whether client delivery/export is allowed, plus retention, rate, attribution,
+fixture, and cost constraints. Technical access never grants delivery rights.
 
-- an imported CSV containing actual business records, such as a small seed
-  list to enrich or the output of an earlier run to reprocess; and
-- the public CMS NPPES registry, for a narrow set of provider identity,
-  practice-location, and practice-phone fields.
+**Job.** A YAML file describing one run: what to search for, which sources to
+use, what processing to apply, and which fields to write out.
 
-A sample CSV that only demonstrates the desired output shape is different from
-a seed list. The current job format does not infer an output schema from sample
-rows; requested output columns are declared explicitly in the job YAML. When a
-CSV contains real seed records, Biz Intel can preserve those records and fill
-available fields such as public website contact details and social links. When
-the goal is to append newly discovered businesses, those additional rows must
-come from an enabled acquisition source.
+**Run.** One execution of a job. Every run has an ID and its own output folder.
 
-After a record has an authorized source and a business website, optional
-enrichment can crawl that business's own public site within its robots policy
-and bounded same-site page limits. Google, Yelp, Yellow Pages, and third-party
-Apify connectors exist in the codebase, but they are disabled for client
-delivery pending source-specific review. If you need an unrestricted directory
-or marketplace scraper, this project does not provide one out of the box.
-
----
+**Evidence.** For an exported field: where the value came from, its URL, when
+it was observed, and how it was collected.
 
 ## How it works
 
+![Biz Intel pipeline](assets/portfolio/pipeline.svg)
+
 ```text
-Job YAML (what is wanted)
-        |
-        v
-   Planner → SourceTask list
-        |
-        v
-  SourceRegistry → executor per source kind
-        |
-        v
-  Business records (raw, per source)
-        |
-        v
-  Validation → Normalization → Deduplication
-        |
-        v
-  EnrichmentRunner (post-dedup, cache-aware)
-  ├── ContactEnricher  phone + website via API, DuckDB cache; approved cap
-  └── SocialEnricher   LinkedIn / Instagram / Facebook / Twitter from website crawl
-        |
-        v
-  PhoneVerificationRunner (optional Twilio Lookup Basic, Keychain-backed)
-        |
-        v
-  Delivery contract (`standard`) → accepted main export + quality/evidence sidecars
-        |
-        v
-  RunResult manifest
+Source plugin(s)
+        ↓
+Validate → normalize → deduplicate
+        ↓
+Optional first-party enrichment / phone check
+        ↓
+Classify quality → export → evidence and run summary
 ```
 
-Each stage has one responsibility and does not call adjacent stages directly. `PipelineRunner` owns stage order; `JobRunner` owns the end-to-end run.
+Whatever the input, every record follows the same cleanup and export steps.
 
----
+## Quick start
 
-## Setup
-
-**Requirements:** Python 3.12+, `[uv](https://github.com/astral-sh/uv)`
+Requirements: Python 3.12+ and [uv](https://github.com/astral-sh/uv).
 
 ```bash
 uv sync
-```
-
-Copy the environment template and fill in the keys you need:
-
-```bash
 cp .env.example .env
 ```
 
----
+Provider credentials are read from macOS Keychain first. Use the generic-
+password service `biz-intel` and the environment-variable name as the account
+label, such as `APIFY_API_KEY` or `GOOGLE_PLACES_API_KEY`. The ignored `.env`
+file is a local fallback using the same names; it is never the preferred store.
 
-## Configuration
-
-| Variable                        | Required for                         | Where to get it                                                               |
-| ------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------- |
-| `GOOGLE_PLACES_API_KEY`         | `google` source                      | [Google Cloud Console](https://console.cloud.google.com/) → Maps → Places API |
-| `YELP_API_KEY`                  | `yelp` source                        | [Yelp Fusion](https://fusion.yelp.com/) developer portal                      |
-| `APIFY_API_KEY`                 | `google-apify`, `yelp-apify` sources | [Apify Console](https://console.apify.com/) → Settings → Integrations         |
-| `SUPABASE_URL` / `SUPABASE_KEY` | storage (future)                     | Supabase project settings                                                     |
-
-Optional path overrides (defaults shown):
-
-```env
-EXPORT_PATH=exports
-RUNS_PATH=runs
-CACHE_PATH=.cache
-LOG_LEVEL=INFO
-HEADLESS=True
-```
-
----
-
-## Running a job
-
-Define a job in YAML. A delivery job starts with client-provided data, an
-approved registry, or an approved licensed provider. CMS NPPES is the narrow
-official-registry connector currently approved for V1. Directory, Google/Yelp
-API, and third-party Apify connectors are intentionally blocked from
-client-delivery runs until each underlying source has been reviewed and
-approved for delivery rights, export use, retention, rate limits, and cost.
-
-### Command line
-
-The installed command keeps normal use to three explicit operations:
-
-```bash
-biz-intel preflight jobs/client_job.yaml
-biz-intel run jobs/client_job.yaml
-biz-intel resume jobs/client_job.yaml runs/<run-id>.checkpoint.json
-```
-
-`preflight` makes no source, Keychain, or provider request. Use `--quiet` with
-`run` or `resume` when embedding the command in another process. The runner
-still applies source policy, cost, and verification safeguards; a command does
-not grant a source additional approval.
+The default path is a CSV of your own: a seed list, a spreadsheet, or a prior
+export you want to clean again. Save this as `jobs/my_csv_job.yaml` and point
+`path` at your input file.
 
 ```yaml
 version: 1
-name: dentists-san-jose
+name: my-business-cleanup
 search:
-  query: dentist
-  cities:
-    - San Jose, CA
+  query: local businesses
 sources:
-  - csv # seed records or a previous run to reprocess
+  - csv
 processing:
   deduplicate: true
-  enrich: true # first-party website enrichment, after deduplication
+  enrich: false # enable first-party website enrichment deliberately
 delivery:
   profile: standard
-  include_non_accepted: false # default: incomplete records stay in sidecars
 output:
   format: csv
   fields:
     - name
+    - address
+    - city
+    - state
     - phone
     - website
     - linkedin
     - instagram
 source_options:
   csv:
-    path: data/raw/client_businesses.csv
+    path: data/raw/businesses.csv
 ```
 
-Run it:
+Check the plan, then run it:
 
-```python
-from biz_intel.jobs import load_job
-from biz_intel.jobs.runner import JobRunner
-import main  # registers all sources
-
-main.register_sources()
-job = load_job("jobs/dentists_san_jose.yaml")
-result = JobRunner().run(job)
-print(result)
+```bash
+biz-intel preflight jobs/my_csv_job.yaml
+biz-intel run jobs/my_csv_job.yaml
 ```
 
-Results land in `exports/` and a sanitized run manifest in `runs/`.
-Each run keeps its main export and delivery sidecars together at
-`exports/<job-name>/<run-id>/`; manifests, checkpoints, and history remain in
-`runs/`.
-During a run, the console prints one data-free milestone per stage (acquire,
-validate, normalize, deduplicate, enrich, classify, export). Pass
-`progress_reporter=None` to `JobRunner` when embedding it in a quiet process.
+### Progressive research skeleton
 
-### Run controls and continuity
+An existing search job can also start a persistent research session. The
+session keeps the current businesses, evidence-backed claims, and each later
+refinement instead of restarting the search:
 
-Call `JobRunner().preflight(job)` before a large run to inspect planned task and
-record ceilings, maximum source invocations, known capped enrichment spend, and
-any enrichment source whose configured cost remains unbounded. It is planning
-only: it neither invokes a source nor approves one for delivery.
-
-Runs write sanitized checkpoints after each source task, omitting raw provider
-payloads. To continue an interrupted run with the exact same job definition:
-
-```python
-result = JobRunner().run(job, resume_from="runs/<run-id>.checkpoint.json")
+```bash
+biz-intel research jobs/oct_dentists_san_jose_metro.yaml \
+  "Dentists in San Jose"
 ```
 
-Completed runs also store a local, sanitized accepted-record snapshot. Stable
-record IDs and the manifest's history section show records that are new,
-updated, unchanged, or missing versus that job's prior completed run.
+The command prints the session path. One supported plain-language refinement
+checks exact NPIs against California DHCS's public Medi-Cal Dental FFS
+directory:
 
-### Standard delivery contract
+```bash
+biz-intel refine runs/research/<run-id>.json \
+  "Which dentists accept Medi-Cal?"
+```
 
-The default `standard` profile writes only **accepted** records to the main
-CSV/JSON. An accepted record has a business name, meaningful location, phone
-or website, an evidence URL, and an observation time. It does not infer a
-missing value or regard a contact as outreach-ready.
+The resulting claim establishes official FFS enrollment only. It does not
+claim that a provider is currently accepting new patients, and records without
+an exact NPI match remain unknown.
 
-Every run writes a compact `*.summary.json` next to the main export. It reports
-acquired/classified/delivered counts, duplicate removals, field completeness,
-non-accepted reasons, and safe pipeline metrics. It contains no raw provider
-payloads. Runs may also write two record-level JSON sidecars:
+A second refinement looks for explicit ownership language on the business's
+own website:
 
-- `*.quality.json` keeps every record's `accepted`, `incomplete`, `closed`,
-  `out_of_scope`, `duplicate`, or `needs_review` status, reasons, and current
-  email/phone quality state.
-- `*.evidence.json` records field-level source, evidence URL, observation
-  time, and collection method—without raw provider payloads.
+```bash
+biz-intel refine runs/research/<run-id>.json \
+  "Which practices look family-owned or independent?"
+```
 
-Set `delivery.include_non_accepted: true` only for a review import where the
-recipient explicitly needs the incomplete records in the main export.
+It labels only explicit first-party signals as `likely_independent` or
+`likely_corporate`. It does not infer ownership from the name, number of
+locations, or missing language; those records remain unclear and stay in the
+session.
 
-Set `delivery.max_age_days` when the client requires current observations;
-records older than that threshold remain in the evidence sidecar but are
-classified `incomplete` rather than delivered as accepted.
+Publicly posted email addresses can be gathered from the same first-party
+pages without selecting an email-verification provider:
 
-### Optional phone validation
+```bash
+biz-intel refine runs/research/<run-id>.json \
+  "Find their public email addresses"
+```
 
-Twilio Lookup Basic is an explicit, post-dedup phone check. It is disabled
-unless a job selects it, cannot run in `live_smoke`, and retains no raw Twilio
-response. Its `provider_valid` / `provider_invalid` result is a number-validity
-signal—not proof of ownership, outreach consent, or business identity.
+The evidence page is retained and the email remains `not_checked`; discovery
+does not imply deliverability.
 
-Keep the restricted Twilio API key and secret in separate macOS Keychain
-generic-password items. The YAML contains only their service names, never a
-credential:
+LinkedIn and other social profiles linked by the business itself use the same
+bounded crawl:
+
+```bash
+biz-intel refine runs/research/<run-id>.json \
+  "Find LinkedIn and other socials"
+```
+
+LinkedIn, Instagram, Facebook, and X/Twitter links retain the first-party page
+where each profile was found.
+
+The session remains the evidence-rich research workspace. Export a clean,
+flat client-facing view when the research is ready:
+
+```bash
+biz-intel research-export runs/research/<run-id>.json exports/dentists.csv
+```
+
+CSV and JSON exports include core business/contact fields, social profiles,
+Medi-Cal enrollment, ownership assessment, the discovery sources, and
+a combined evidence-links column. Unknown and unclear values remain explicit.
+When exact duplicate candidates come from more than one source, the canonical
+business row retains each contributing source name.
+
+An earlier CSV or JSON result can become a session without rerunning candidate
+search:
+
+```bash
+biz-intel research-import exports/dentists.csv \
+  "Dentists in San Jose" \
+  --session runs/research/dentists.json
+```
+
+Known NPPES registry URLs are converted back into exact NPI identifiers, so a
+saved NPPES export can continue into later evidence refinements.
+
+`preflight` makes no source, Keychain, or provider request. It reports planned
+tasks, record ceilings, and known cost limits. Resume an interrupted run from
+its sanitized checkpoint:
+
+```bash
+biz-intel resume jobs/my_csv_job.yaml runs/<run-id>.checkpoint.json
+```
+
+## Job recipes
+
+Start from one of these and keep the job narrowly scoped to the client’s
+request.
+
+### CSV cleanup and first-party enrichment
+
+The default recipe preserves the original record, cleans fields, and
+deduplicates. When a client needs business-published contacts or social links,
+enable the bounded first-party enrichment step:
+
+```yaml
+processing:
+  enrich: true
+```
+
+It only visits the business website after deduplication and stays within
+same-origin and site-policy limits.
+
+### NPPES provider candidates
+
+`nppes` reads the official US provider registry for provider identity, practice
+location, and practice phone. It is bounded by the limits you set. The registry
+does not establish licensing status, email ownership, social identity, or
+contact consent.
+
+```yaml
+search:
+  query: dentist
+  cities:
+    - San Jose, CA
+sources:
+  - nppes
+limits:
+  total_records: 100
+  per_source_records: 100
+```
+
+### Overture snapshot
+
+`overture` reads a local GeoParquet snapshot plus a companion manifest. The
+manifest pins the release, retrieval time, geographic/taxonomy scope,
+attribution/license, row count, and content hash. The job reads the frozen file
+and never queries Overture live.
+
+```yaml
+sources:
+  - overture
+source_options:
+  overture:
+    path: data/snapshots/places.parquet
+    manifest_path: data/snapshots/places.manifest.json
+```
+
+Overture is implemented as candidate acquisition but remains blocked from
+client delivery until the exact source rights and client use are reviewed.
+
+### Optional phone check — Twilio Lookup Basic
+
+Twilio Lookup Basic runs after deduplication and reports whether a number is
+technically valid. It does not establish ownership, business identity, consent,
+or permission to contact someone.
+
+Store a restricted Lookup API key and secret in macOS Keychain:
+
+| Keychain service | Keychain account |
+| --- | --- |
+| `biz-intel` | `TWILIO_API_KEY` |
+| `biz-intel` | `TWILIO_API_SECRET` |
+
+Then add this to a job with an approved budget and client reference:
 
 ```yaml
 verification:
   phone:
     provider: twilio_lookup_basic
-    api_key_service: biz-intel-twilio-api-key
-    api_secret_service: biz-intel-twilio-api-secret
+    credential_service: biz-intel
+    api_key_account: TWILIO_API_KEY
+    api_secret_account: TWILIO_API_SECRET
 ```
 
-The Keychain items must be accessible to the user running the job. Use a
-restricted key scoped to Lookup; do not use an account Auth Token or a broad
-standard key. Email verification remains unconfigured until a client approves
-an email provider's cost and data-retention terms.
+An ignored local `.env` may hold the same variable names as a development
+fallback. Credentials never go in job YAML, fixtures, manifests, sidecars, or
+Git.
 
----
+## Output
 
-## Source policy
+Each run writes client-facing files to `exports/<job-name>/<run-id>/`:
 
-| Source class | Default for a client delivery | Purpose |
+- **Main CSV or JSON export:** accepted records with requested fields.
+- **Quality sidecar:** every record’s status and why it was held for review,
+  excluded, or marked duplicate.
+- **Evidence sidecar:** field source, evidence URL, observation time, and
+  collection method—without raw provider payloads.
+- **Summary:** acquired, deduplicated, accepted, and review counts, plus field
+  completeness and safe pipeline metrics.
+
+Run manifests, checkpoints, and accepted-record history live under `runs/`.
+The default `standard` profile accepts a record only if it has a business name,
+meaningful location, phone or website, evidence URL, and observation time.
+Missing data is left blank.
+
+## Sources
+
+| Source | Delivery status | Intended use |
 | --- | --- | --- |
-| `client_input` | allowed | Seed records or prior-run data supplied for processing under the engagement agreement. |
-| `official_registry` | review required per registry | Authoritative identity/location data with its own terms. |
-| `licensed` | review required per provider and job | Data whose delivery/reuse rights and budget are confirmed. |
-| `first_party_web` | enrichment only | Public business contact/team/social pages, within site policy and crawl limits. |
-| `experimental_or_disallowed` | blocked | Parser research and offline fixtures only; never a client export. |
+| `csv` | allowed | Client input, seed lists, and prior exports. |
+| `nppes` | approved V1 path | Provider identity, practice location, and practice phone. |
+| `wa-li` | registry research | Washington contractor-registration evidence. |
+| `ca-dental-board` | manual evidence import | California dental-license review; no automated Board lookup. |
+| `overture` | blocked | Reviewed local candidate snapshot only. |
+| `google`, `yelp`, `yellowpages` | blocked | Experimental connectors pending source-specific review. |
+| `*-apify`, including `linkedin-apify` | blocked | Actor-backed observations; hosting does not grant delivery rights. |
 
-Google, Yelp, Yellow Pages, and third-party Apify actor integrations currently
-belong to the last class. Running an actor through Apify does not change the
-underlying site's delivery rights. They remain useful as sanitized parser
-fixtures while policy review is pending.
+Paid acquisition or verification needs more than a spend cap: the source must
+be approved for the client’s intended use, and the job must set a finite cap,
+budget, and approval reference. Default delivery is zero spend.
 
-Runtime caches follow the registered source policy rather than one global
-retention period. Experimental/disallowed sources retain no contact-detail
-cache entries; an approved source must declare its own retention window.
+## Safeguards
 
-`nppes` supplies provider identity, practice location, and practice phone. It
-does not establish licensing status, email, website, social profile, or
-outreach consent. A delivery still needs its scoped job, evidence/freshness
-review, and any client-specific attribution check.
+- Email checks are structural only. Deliverability verification awaits an
+  approved provider, terms, and budget.
+- Tests use sanitized fixtures; live provider calls are not ordinary tests.
+- Experimental sources retain no contact-detail cache entries. Approved sources
+  follow the retention declared in their policy.
 
-## Source integrations
-
-| Source name    | Kind              | Cost per 1 000 records                    | Notes                                                       |
-| -------------- | ----------------- | ----------------------------------------- | ----------------------------------------------------------- |
-| `yellowpages`  | Scrapy/Playwright | varies | experimental; blocked from client delivery |
-| `google`       | API               | varies | experimental; blocked from client delivery |
-| `yelp`         | API               | varies | experimental; blocked from client delivery |
-| `google-apify` | Apify             | varies | experimental; blocked from client delivery |
-| `yelp-apify`   | Apify             | varies | experimental; blocked from client delivery |
-| `nppes`        | CMS NPPES API     | zero spend | approved official-registry V1 path |
-
-All sources produce the same `Business` record — the pipeline and enrichment layers are source-agnostic. A policy decision, not the technical adapter, determines whether a source can be used for delivery.
-
----
-
-## Enrichment
-
-Enrichment runs **after deduplication** so each unique business is enriched at most once.
-
-### Provider contact enrichment (`enrich_details: true` in `source_options`)
-
-Calls Google Place Details or Yelp Business Details for phone and website. This
-is disabled by default, subject to the provider's terms, and is not part of an
-approved delivery path yet. Retention is source-specific: experimental and
-unapproved sources use zero-day retention, while an approved source must
-declare its own cache window before its contact details can be retained.
-
-Inspect or export the cache at any time:
-
-```python
-import duckdb
-conn = duckdb.connect(".cache/place_details.db")
-conn.execute("SELECT source, COUNT(*) n FROM place_details_cache GROUP BY source").df()
-conn.execute("COPY place_details_cache TO 'cache.parquet' (FORMAT PARQUET)")
-```
-
-### First-party website enrichment (`processing.enrich: true`)
-
-Crawls a business's own public website after deduplication, subject to its
-robots policy and bounded same-site page limits. It can extract openly listed
-general email, phone, and LinkedIn/Instagram/Facebook/Twitter/X links, without
-guessing people or contact details. It has no provider charge; a job still
-needs permission to use the relevant website data. Each enriched value carries
-first-party page evidence and stays `not_checked` until an explicitly requested
-verification provider is added later.
-
-### Capping enrichment cost (`max_enrich`)
-
-`source_options.{source}.max_enrich: N` caps the number of **paid**
-contact-details calls per source per run (for example Google Place Details or
-Yelp Business Details). Every paid source needs a finite cap; an omitted cap
-permits zero paid calls. A positive cap also requires a positive
-`budget.max_total_usd` and a non-sensitive `budget.approval_reference`. The
-runner rejects a configured estimate above that total.
-
-- **Cache hits are free** — a known `place_id` is never re-fetched within its
-  source-approved cache window, and never counts against the cap.
-- **Capped businesses stay in the dataset** — the cap stops spending, not data; the business's source record is kept with contact fields left empty.
-- **Reported in the run manifest** — every run that sets `max_enrich` records a `cost` section: per-source `paid_calls`, a `capped` flag, and an estimated spend (`services/enrichment/budget.py` holds the per-call estimate). Spend is an upper bound until free-tier accounting lands.
-
-```yaml
-source_options:
-  google:
-    enrich_details: true
-    max_enrich: 50      # at most 50 paid Place Details calls this run
-budget:
-  max_total_usd: 1.00
-  approval_reference: client-order-42
-```
-
-## Offline fixtures and source health
-
-Normal parser work uses versioned fixtures under `tests/fixtures/`. Provider
-fixtures are declared in `tests/fixtures/manifest.json`; the validator checks
-their content hash and requires synthetic, sanitized fixture claims. CSV
-examples also use only reserved `.example.test` contact values. Real client
-input belongs in the ignored `data/raw/` landing area. This keeps tests
-repeatable without provider calls or committed client data.
-
-`SourceHealthTracker` records per-source success, empty, retryable, fatal, and
-skipped outcomes. Job runs record manifest-safe, generic failure codes rather
-than raw exception text, and live-smoke runs use its failure threshold to stop
-later tasks for an unhealthy source.
-
-## Controlled live-smoke mode
-
-Normal jobs use `execution.mode: delivery`; this is the default and does not
-make a provider live. A live smoke job must explicitly set
-`execution.mode: live_smoke`, and every selected source must separately be
-approved for both delivery and live smoke and declare a `zero-spend` cost
-model. No current provider adapter has that approval, so this mode is covered
-only by offline test doubles today.
-
-Live smoke is acquisition-only and zero-spend: it rejects website and provider
-enrichment, requires `max_cost_usd: 0`, permits at most 3 tasks, 25 records per
-task, and 3 attempts per task. Retries use bounded backoff and source-health
-thresholds. The record limits below are enforced before records enter the
-pipeline; `total_records` is therefore both an acquisition ceiling and a final
-delivery ceiling. The maximum source invocations are `max_tasks × max_attempts`
-(at most 9); `max_attempts` includes the first call.
-
-```yaml
-execution:
-  mode: live_smoke
-  live_smoke:
-    max_tasks: 1
-    max_records_per_task: 10
-    max_attempts: 2       # includes the first attempt; hard maximum is 3
-    retry_backoff_seconds: 1
-    failure_threshold: 2
-    max_cost_usd: 0
-limits:
-  total_records: 10
-  per_source_records: 10
-  per_location_records: 10
-```
-
-The legacy top-level `limit` remains a compatibility alias for
-`limits.total_records`; a job may not specify both. Task results audit capped
-or withheld work as `skipped` without exposing provider exception payloads.
-
----
-
-## Testing
+## Development
 
 ```bash
 uv run python -m unittest discover -s tests -v
 ```
 
-Run a single file:
-
-```bash
-uv run python -m unittest tests/test_enrichment.py -v
-```
-
----
-
-## Project layout
-
-```text
-biz_intel/
-├── core/               execution primitives (SourceTask, SourceRegistry, executors, BaseApiSource, BaseApifySource)
-├── jobs/               job spec (JobSpec, Planner, JobRunner, RunResult)
-├── storage/            stable record IDs and sanitized local run history
-├── models/             Business domain model
-├── pipelines/          validation, normalization, deduplication stages
-├── services/
-│   ├── enrichment/     ContactEnricher, SocialEnricher, PlaceDetailsCache, EnrichmentBudget, EnrichmentRunner
-│   ├── verification/   optional Keychain-backed Twilio Lookup Basic validation
-│   └── exporter.py     CSV / JSON export with field projection
-└── sources/
-    ├── google/         GooglePlacesSource (API) + GoogleMapsApifySource (Apify)
-    ├── yelp/           YelpSource (API) + YelpApifySource (Apify)
-    ├── yellowpages/    YellowPagesSpider (Scrapy + Playwright)
-    └── csv/            CSVSource (debug / import path only)
-
-jobs/                   YAML job definitions
-tests/fixtures/         committed synthetic CSV and provider-parser fixtures
-data/raw/               ignored client-supplied input landing area
-exports/                job output files
-runs/                   manifests, checkpoints, and ignored local history (JSON)
-.cache/                 DuckDB place details cache
-```
-
----
-
-The public repository contains the project overview, safe demo fixtures, and
-test suite. Operational notes and client-run artifacts are intentionally kept
-outside this showcase repository.
+Git history holds the detailed implementation record.

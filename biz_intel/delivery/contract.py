@@ -153,7 +153,7 @@ def _fill_source_provenance(
 def provenance_payload(business: Business) -> dict[str, object]:
     """Return safe evidence data for a sidecar, excluding raw provider payloads."""
 
-    return {
+    payload: dict[str, object] = {
         "name": business.name,
         "record_status": business.record_status,
         "field_provenance": {
@@ -166,6 +166,21 @@ def provenance_payload(business: Business) -> dict[str, object]:
             for field, evidence in sorted(business.field_provenance.items())
         },
     }
+    if business.claims:
+        payload["claims"] = [
+            {
+                "key": claim.key,
+                "value": claim.value,
+                "source": claim.source,
+                "source_record_id": claim.source_record_id,
+                "evidence_url": claim.evidence_url,
+                "observed_at": _timestamp(claim.observed_at),
+                "method": claim.method,
+                "authority": claim.authority,
+            }
+            for claim in business.claims
+        ]
+    return payload
 
 
 def quality_payload(business: Business) -> dict[str, object]:

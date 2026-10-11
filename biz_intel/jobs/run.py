@@ -13,6 +13,7 @@ from typing import Any
 
 from biz_intel.config import config
 from biz_intel.models.business import Business, FieldProvenance
+from biz_intel.models.claim import Claim
 from biz_intel.services.enrichment import CostLine
 
 
@@ -127,6 +128,7 @@ class OutputResult:
     quality_destination: str | None = None
     evidence_destination: str | None = None
     summary_destination: str | None = None
+    composition_destination: str | None = None
     status_counts: dict[str, int] = field(default_factory=dict)
 
 
@@ -278,6 +280,10 @@ def _checkpoint_business(business: Business) -> dict[str, Any]:
         observed_at = value.get("observed_at")
         if observed_at is not None:
             value["observed_at"] = observed_at.isoformat()
+    for claim in data["claims"]:
+        observed_at = claim.get("observed_at")
+        if observed_at is not None:
+            claim["observed_at"] = observed_at.isoformat()
     return data
 
 
@@ -308,4 +314,8 @@ def _business_from_checkpoint(data: object) -> Business:
             evidence["observed_at"] = datetime.fromisoformat(observed_at)
         provenance[field_name] = FieldProvenance(**evidence)
     restored["field_provenance"] = provenance
+    raw_claims = restored.get("claims", [])
+    if not isinstance(raw_claims, (list, tuple)):
+        raise ValueError("Run checkpoint claims must be a sequence.")
+    restored["claims"] = tuple(Claim.from_dict(claim) for claim in raw_claims)
     return Business.from_dict(restored)

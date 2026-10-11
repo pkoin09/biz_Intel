@@ -10,7 +10,7 @@ from biz_intel.jobs import JobSpec, load_job
 
 SAMPLE_JOB = (
     Path(__file__).resolve().parents[1]
-    / "jobs/dentists_san_jose.yaml"
+    / "jobs/commercial_cleaning.yaml"
 )
 
 
@@ -21,20 +21,24 @@ class JobSpecTests(unittest.TestCase):
         job = load_job(SAMPLE_JOB)
 
         self.assertEqual(job.version, 1)
-        self.assertEqual(job.name, "client-business-import")
-        self.assertEqual(job.search.query, "local businesses")
-        self.assertEqual(job.search.cities, ("San Jose, CA",))
+        self.assertEqual(job.name, "commercial-cleaning-demo")
+        self.assertEqual(job.search.query, "commercial cleaning")
+        self.assertEqual(job.search.cities, ("Denver, CO",))
         self.assertEqual(job.sources, ("csv",))
         self.assertIsNone(job.limit)
-        self.assertEqual(job.output.fields, ("name", "phone", "website"))
+        self.assertEqual(
+            job.output.fields,
+            ("name", "category", "address", "city", "phone", "website"),
+        )
         self.assertTrue(job.processing.deduplicate)
         self.assertFalse(job.processing.enrich)
-        self.assertTrue(job.delivery.include_non_accepted)
+        self.assertFalse(job.delivery.include_non_accepted)
         self.assertTrue(job.delivery.include_sidecars)
         self.assertEqual(
             job.source_options,
-            {"csv": {"path": "tests/fixtures/businesses_messy_synthetic.csv"}},
+            {"csv": {"path": "tests/fixtures/commercial_cleaning_messy_synthetic.csv"}},
         )
+        self.assertTrue(job.verification.phone.uses_account_scoped_credentials)
 
     def test_rejects_unknown_output_fields(self) -> None:
         data = {

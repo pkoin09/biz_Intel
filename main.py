@@ -6,8 +6,12 @@ from biz_intel.core.pipeline import PipelineRunner
 from biz_intel.core.registry import registry
 from biz_intel.core.source_kind import SourceKind
 from biz_intel.core.source_policy import CLIENT_INPUT_POLICY
+from biz_intel.core.source_policy import CA_DENTAL_BOARD_POLICY
 from biz_intel.core.source_policy import EXPERIMENTAL_OR_DISALLOWED_POLICY
+from biz_intel.core.source_policy import LINKEDIN_APIFY_POLICY
 from biz_intel.core.source_policy import NPPES_POLICY
+from biz_intel.core.source_policy import OVERTURE_POLICY
+from biz_intel.core.source_policy import WA_LI_POLICY
 from biz_intel.metrics import metrics
 
 from biz_intel.sources.csv import (
@@ -32,6 +36,16 @@ from biz_intel.sources.yellowpages import (
     YellowPagesSpider,
 )
 from biz_intel.sources.nppes import SOURCE_NAME as NPPES_NAME, NppesSource
+from biz_intel.sources.ca_dental_board import (
+    SOURCE_NAME as CA_DENTAL_BOARD_NAME,
+    CaliforniaDentalBoardSource,
+)
+from biz_intel.sources.wa_li import SOURCE_NAME as WA_LI_NAME, WaLiSource
+from biz_intel.sources.overture import SOURCE_NAME as OVERTURE_NAME, OvertureSnapshotSource
+from biz_intel.sources.linkedin import (
+    SOURCE_NAME as LINKEDIN_APIFY_NAME,
+    LinkedInApifySource,
+)
 
 
 def register_sources() -> None:
@@ -75,6 +89,13 @@ def register_sources() -> None:
     )
 
     registry.register(
+        LINKEDIN_APIFY_NAME,
+        LinkedInApifySource,
+        kind=SourceKind.APIFY,
+        policy=LINKEDIN_APIFY_POLICY,
+    )
+
+    registry.register(
         CSV_NAME,
         CSVSource,
         kind=SourceKind.FILE,
@@ -85,6 +106,24 @@ def register_sources() -> None:
         NppesSource,
         kind=SourceKind.API,
         policy=NPPES_POLICY,
+    )
+    registry.register(
+        WA_LI_NAME,
+        WaLiSource,
+        kind=SourceKind.API,
+        policy=WA_LI_POLICY,
+    )
+    registry.register(
+        CA_DENTAL_BOARD_NAME,
+        CaliforniaDentalBoardSource,
+        kind=SourceKind.FILE,
+        policy=CA_DENTAL_BOARD_POLICY,
+    )
+    registry.register(
+        OVERTURE_NAME,
+        OvertureSnapshotSource,
+        kind=SourceKind.FILE,
+        policy=OVERTURE_POLICY,
     )
 
 def main() -> None:

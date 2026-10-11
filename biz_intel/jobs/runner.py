@@ -11,6 +11,7 @@ from itertools import islice
 from time import sleep
 
 from biz_intel.config import config
+from biz_intel.composition import CrossSourceMatcher
 from biz_intel.core.executor import RetryableSourceError
 from biz_intel.core.pipeline import PipelineRunner
 from biz_intel.core.registry import SourceRegistry
@@ -112,6 +113,7 @@ class JobRunner:
         job: JobSpec,
         *,
         resume_from: str | None = None,
+        record_consumer: Callable[[list[Business]], None] | None = None,
     ) -> RunResult:
         # A JobRunner always writes an export, so make this decision before
         # planning or issuing even one source request.
@@ -187,6 +189,17 @@ class JobRunner:
         )
 
         self._report(f"Acquire: {len(collected)} records collected")
+        composition = None
+        if job.composition.enabled:
+            composition = CrossSourceMatcher(
+                job.composition.primary_source,
+                job.composition.supplemental_sources,
+            ).match(collected)
+            self._report(
+                "Compose: "
+                f"{sum(match.decision == 'matched' for match in composition.matches)} matched, "
+                f"{sum(match.decision != 'matched' for match in composition.matches)} for review"
+            )
         processed = list(
             PipelineRunner(fuzzy_deduplicate=job.processing.fuzzy_deduplicate).run(
                 iter(collected),
@@ -215,6 +228,8 @@ class JobRunner:
             job.delivery.profile,
             max_age_days=job.delivery.max_age_days,
         ).classify(processed)
+        if record_consumer is not None:
+            record_consumer(list(delivery.businesses))
         pipeline_metrics = dict(metrics.items())
         delivered_records = sum(
             1
@@ -235,6 +250,7 @@ class JobRunner:
                 delivered_records=delivered_records,
                 pipeline_metrics=pipeline_metrics,
             ),
+            composition_payload=composition.to_dict() if composition else None,
         )
         self._report(
             "Export: "
@@ -280,6 +296,11 @@ class JobRunner:
                 summary_destination=(
                     str(exported.summary_destination)
                     if exported.summary_destination
+                    else None
+                ),
+                composition_destination=(
+                    str(exported.composition_destination)
+                    if exported.composition_destination
                     else None
                 ),
                 status_counts=delivery.status_counts,

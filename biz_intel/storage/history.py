@@ -21,7 +21,17 @@ from biz_intel.models.business import Business
 
 
 SNAPSHOT_VERSION = 1
-_VOLATILE_FIELDS = frozenset({"raw_data", "scraped_at", "observed_at", "field_provenance"})
+_VOLATILE_FIELDS = frozenset(
+    {
+        "raw_data",
+        "scraped_at",
+        "observed_at",
+        "field_provenance",
+        "claims",
+        "source_ids",
+        "discovery_sources",
+    }
+)
 _IDENTITY_CANDIDATES = (
     ("name", "address", "phone"),
     ("name", "address", "website"),

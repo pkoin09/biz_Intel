@@ -21,6 +21,16 @@ class SourceClass(StrEnum):
     EXPERIMENTAL_OR_DISALLOWED = "experimental_or_disallowed"
 
 
+class SourceRole(StrEnum):
+    """The operational contribution a source can make to a job."""
+
+    CANDIDATE = "candidate"
+    REGISTRY = "registry"
+    CATALOG = "catalog"
+    ENRICHER = "enricher"
+    VERIFIER = "verifier"
+
+
 class RetentionBehavior(StrEnum):
     """How source data may be retained outside a specific run."""
 
@@ -54,6 +64,7 @@ class SourcePolicy:
     runtime_cache_ttl_days: int = 0
     live_smoke_allowed: bool = False
     enabled: bool = True
+    roles: tuple[SourceRole, ...] = ()
 
     @property
     def allows_delivery(self) -> bool:
@@ -77,6 +88,7 @@ CLIENT_INPUT_POLICY = SourcePolicy(
     field_coverage=("client-supplied fields",),
     cost_model="client engagement controlled",
     runtime_cache_ttl_days=0,
+    roles=(SourceRole.CANDIDATE,),
 )
 
 OFFICIAL_REGISTRY_POLICY = SourcePolicy(
@@ -88,6 +100,7 @@ OFFICIAL_REGISTRY_POLICY = SourcePolicy(
     field_coverage=("identity", "location"),
     cost_model="review before use",
     runtime_cache_ttl_days=0,
+    roles=(SourceRole.REGISTRY,),
 )
 
 # CMS's public NPPES Registry is the narrow, approved V1 acquisition path.
@@ -105,6 +118,69 @@ NPPES_POLICY = SourcePolicy(
     cost_model="zero-spend",
     runtime_cache_ttl_days=0,
     live_smoke_allowed=False,
+    roles=(SourceRole.CANDIDATE, SourceRole.REGISTRY),
+)
+
+# Washington L&I publishes this contractor-registration dataset under the
+# Open Data Commons Public Domain Dedication and License.  The connector is
+# intentionally limited to the General dataset; it does not collect insurer,
+# policy, principal, or other unnecessary fields from related datasets.
+WA_LI_POLICY = SourcePolicy(
+    source_class=SourceClass.OFFICIAL_REGISTRY,
+    delivery_allowed=True,
+    export_allowed=True,
+    retention=RetentionBehavior.SOURCE_TERMS,
+    fixture_behavior=FixtureBehavior.SANITIZED_ONLY,
+    attribution="Washington State Labor & Industries Contractor License Data",
+    field_coverage=(
+        "contractor identity",
+        "mailing location",
+        "business phone",
+        "registration status",
+        "registration dates",
+    ),
+    rate_limit="one bounded Socrata query per task; no concurrent calls to this source by default",
+    cost_model="zero-spend",
+    runtime_cache_ttl_days=0,
+    live_smoke_allowed=False,
+    roles=(SourceRole.CANDIDATE, SourceRole.REGISTRY),
+)
+
+# This connector imports a client-provided/manual snapshot from the official
+# California Dental Board lookup. It does not automate Board queries. Every
+# row must retain the profile URL and observation time needed for review.
+CA_DENTAL_BOARD_POLICY = SourcePolicy(
+    source_class=SourceClass.OFFICIAL_REGISTRY,
+    delivery_allowed=True,
+    export_allowed=True,
+    retention=RetentionBehavior.SOURCE_TERMS,
+    fixture_behavior=FixtureBehavior.SANITIZED_ONLY,
+    attribution="California Dental Board / Department of Consumer Affairs",
+    field_coverage=("dentist license identity", "license status", "license dates"),
+    rate_limit="manual evidence import only; no automated Board lookup",
+    cost_model="zero-spend",
+    runtime_cache_ttl_days=0,
+    live_smoke_allowed=False,
+    roles=(SourceRole.REGISTRY, SourceRole.VERIFIER),
+)
+
+# Overture snapshot imports are deliberately a candidate-acquisition boundary.
+# A snapshot must be reviewed with its release and license metadata before it
+# can become part of a client-delivery policy.  The importer itself is offline
+# and has no ability to query the Overture cloud.
+OVERTURE_POLICY = SourcePolicy(
+    source_class=SourceClass.LICENSED,
+    delivery_allowed=False,
+    export_allowed=False,
+    retention=RetentionBehavior.LICENSE_TERMS,
+    fixture_behavior=FixtureBehavior.SANITIZED_ONLY,
+    attribution="Overture Maps Foundation data; snapshot manifest required",
+    field_coverage=("business identity", "location", "category", "public contact when present"),
+    rate_limit="offline local snapshot import only; no live Overture query",
+    cost_model="zero-spend offline import; review release and license before delivery",
+    runtime_cache_ttl_days=0,
+    live_smoke_allowed=False,
+    roles=(SourceRole.CANDIDATE,),
 )
 
 LICENSED_POLICY = SourcePolicy(
@@ -116,6 +192,7 @@ LICENSED_POLICY = SourcePolicy(
     field_coverage=("provider-specific"),
     cost_model="review before use",
     runtime_cache_ttl_days=0,
+    roles=(SourceRole.CANDIDATE,),
 )
 
 FIRST_PARTY_WEB_POLICY = SourcePolicy(
@@ -127,6 +204,7 @@ FIRST_PARTY_WEB_POLICY = SourcePolicy(
     field_coverage=("public business contact", "social links"),
     rate_limit="bounded same-origin crawl; obey robots policy",
     runtime_cache_ttl_days=0,
+    roles=(SourceRole.ENRICHER,),
 )
 
 EXPERIMENTAL_OR_DISALLOWED_POLICY = SourcePolicy(
@@ -138,6 +216,26 @@ EXPERIMENTAL_OR_DISALLOWED_POLICY = SourcePolicy(
     cost_model="disabled by default",
     runtime_cache_ttl_days=0,
     enabled=False,
+    roles=(SourceRole.CANDIDATE,),
+)
+
+# LinkedIn observations are produced by a separately configured Apify Actor.
+# The adapter deliberately excludes contact details, and is not a delivery
+# path until the actor, LinkedIn terms, and client use have been reviewed.
+LINKEDIN_APIFY_POLICY = SourcePolicy(
+    source_class=SourceClass.EXPERIMENTAL_OR_DISALLOWED,
+    delivery_allowed=False,
+    export_allowed=False,
+    retention=RetentionBehavior.EPHEMERAL,
+    fixture_behavior=FixtureBehavior.SANITIZED_ONLY,
+    attribution="LinkedIn public-profile observation via configured Apify actor",
+    field_coverage=("public profile URL", "public profile headline"),
+    rate_limit="explicit URL list only; maximum 100 profiles per actor run",
+    cost_model="actor-priced; explicit approval required",
+    runtime_cache_ttl_days=0,
+    live_smoke_allowed=False,
+    enabled=False,
+    roles=(SourceRole.ENRICHER,),
 )
 
 
