@@ -7,6 +7,10 @@ small evidence plugins without restarting the search.
 > **Status:** Active work in progress. The research-session workflow below is
 > usable today; plugins and source coverage are still expanding.
 
+Development began in July 2026. The current public history was consolidated
+from a private working branch so local notes and research records would not be
+published. See the [development timeline](docs/HISTORY.md).
+
 ```text
 Search or import
       ↓
@@ -175,6 +179,7 @@ See [Jobs](docs/JOBS.md) for the YAML structure and execution controls.
 - [Jobs](docs/JOBS.md)
 - [Sessions](docs/SESSIONS.md)
 - [Source policies](docs/SOURCE-POLICIES.md)
+- [Development timeline](docs/HISTORY.md)
 - [Dentists in San Jose cookbook](docs/cookbook/dentists-san-jose.md)
 - [Commercial cleaning cookbook](docs/cookbook/commercial-cleaning.md)
 
