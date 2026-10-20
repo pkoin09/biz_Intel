@@ -7,6 +7,9 @@ import unittest
 from pathlib import Path
 
 import duckdb
+import httpx
+import socket
+import ssl
 from unittest.mock import MagicMock, patch
 
 from biz_intel.models.business import Business
@@ -14,7 +17,7 @@ from biz_intel.services.enrichment.budget import EnrichmentBudget
 from biz_intel.services.enrichment.cache import PlaceDetailsCache, CACHE_TTL_DAYS
 from biz_intel.services.enrichment.contact import ContactEnricher
 from biz_intel.services.enrichment.runner import EnrichmentRunner
-from biz_intel.services.enrichment.social import SocialEnricher
+from biz_intel.services.enrichment.social import FirstPartyWebsiteCrawler, SocialEnricher
 
 
 def _business(**kwargs) -> Business:
@@ -394,6 +397,84 @@ class SocialEnricherTests(unittest.TestCase):
         result = self._enricher().enrich(b)
 
         self.assertIs(result, b)
+
+    def test_crawl_outcome_distinguishes_success_and_robots_denial(self) -> None:
+        class Response:
+            def __init__(self, text, url):
+                self.text = text
+                self.url = url
+
+            def raise_for_status(self):
+                return None
+
+        def allowed(url, **kwargs):
+            text = "User-agent: *\nAllow: /\n" if url.endswith("robots.txt") else "<p>Open</p>"
+            return Response(text, url)
+
+        success = FirstPartyWebsiteCrawler(allowed).crawl_with_outcome(
+            "https://practice.test"
+        )
+        denied = FirstPartyWebsiteCrawler(
+            lambda url, **kwargs: Response("User-agent: *\nDisallow: /\n", url)
+        ).crawl_with_outcome("https://blocked.test")
+
+        self.assertEqual(success.status, "success")
+        self.assertEqual(len(success.pages), 1)
+        self.assertEqual(denied.status, "robots_denied")
+        self.assertEqual(denied.pages, ())
+
+    def test_crawler_reuses_one_outcome_for_the_same_site_url(self) -> None:
+        class Response:
+            def __init__(self, text, url):
+                self.text = text
+                self.url = url
+
+            def raise_for_status(self):
+                return None
+
+        calls = []
+
+        def get(url, **kwargs):
+            calls.append(url)
+            text = "User-agent: *\nAllow: /\n" if url.endswith("robots.txt") else "<p>Open</p>"
+            return Response(text, url)
+
+        crawler = FirstPartyWebsiteCrawler(get)
+        first = crawler.crawl_with_outcome("https://practice.test")
+        second = crawler.crawl_with_outcome("https://practice.test")
+
+        self.assertIs(first, second)
+        self.assertEqual(calls, ["https://practice.test/robots.txt", "https://practice.test"])
+
+    def test_crawl_outcome_distinguishes_tls_dns_timeout_and_http_errors(self) -> None:
+        request = httpx.Request("GET", "https://practice.test/robots.txt")
+
+        def failure(kind):
+            def get(url, **kwargs):
+                if kind == "tls_error":
+                    try:
+                        raise ssl.SSLCertVerificationError("certificate verify failed")
+                    except ssl.SSLCertVerificationError as exc:
+                        raise httpx.ConnectError("TLS failed", request=request) from exc
+                if kind == "dns_error":
+                    try:
+                        raise socket.gaierror("name not known")
+                    except socket.gaierror as exc:
+                        raise httpx.ConnectError("DNS failed", request=request) from exc
+                if kind == "timeout":
+                    raise httpx.ReadTimeout("timed out", request=request)
+                response = httpx.Response(503, request=request)
+                raise httpx.HTTPStatusError("unavailable", request=request, response=response)
+
+            return get
+
+        for status in ("tls_error", "dns_error", "timeout", "http_error"):
+            with self.subTest(status=status):
+                outcome = FirstPartyWebsiteCrawler(failure(status)).crawl_with_outcome(
+                    "https://practice.test"
+                )
+                self.assertEqual(outcome.status, status)
+                self.assertEqual(outcome.pages, ())
 
 
 class EnrichmentRunnerTests(unittest.TestCase):

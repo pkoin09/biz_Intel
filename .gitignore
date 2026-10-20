@@ -11,6 +11,7 @@ rules.md
 .cache/
 data/raw/
 data/overture/
+data/reviewed/
 
 # Python-generated files
 __pycache__/
@@ -23,8 +24,7 @@ wheels/
 # Virtual environments
 .venv
 
-# Documentation
-docs/
+# Local documentation
 Documentation/
 _README.md
 
@@ -36,7 +36,7 @@ biz_intel/_spiders/
 *.jpg
 screenshots/
 
-# Generated job-run manifests and client output
+# Generated job-run manifests and exports
 runs/
 exports/
 

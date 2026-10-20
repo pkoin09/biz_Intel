@@ -17,8 +17,8 @@ _BUSINESS_FIELDS = {field.name for field in fields(Business)}
 _NPI_URL = re.compile(r"npiregistry\.cms\.hhs\.gov/provider-view/(\d{10})(?:\D|$)", re.I)
 
 
-def import_research_session(source: str | Path, request: str) -> ResearchSession:
-    """Load a safe business projection from CSV or JSON for continued research."""
+def load_business_records(source: str | Path) -> list[Business]:
+    """Load a safe business projection from a CSV or JSON result file."""
 
     path = Path(source)
     suffix = path.suffix.casefold()
@@ -35,8 +35,13 @@ def import_research_session(source: str | Path, request: str) -> ResearchSession
     if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
         raise ValueError("Research import must contain a list of business records.")
 
-    businesses = [_business_from_row(row) for row in rows]
-    return ResearchSession(request, businesses)
+    return [_business_from_row(row) for row in rows]
+
+
+def import_research_session(source: str | Path, request: str) -> ResearchSession:
+    """Load a safe business projection from CSV or JSON for continued research."""
+
+    return ResearchSession(request, load_business_records(source))
 
 
 def _business_from_row(row: dict[str, object]) -> Business:

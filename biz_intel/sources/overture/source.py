@@ -168,7 +168,12 @@ class OvertureSnapshotSource(FileSource):
             raise ValueError(f"Overture snapshot row {row_number} is missing {missing}.")
 
         address = _first_mapping(row.get("addresses"))
-        category = _text(_nested(row.get("categories"), "primary")) or _text(row.get("category"))
+        category = (
+            _text(_nested(row.get("taxonomy"), "primary"))
+            or _text(row.get("basic_category"))
+            or _text(_nested(row.get("categories"), "primary"))
+            or _text(row.get("category"))
+        )
         phone = _first_text(row.get("phones")) or _text(row.get("phone"))
         website = _first_text(row.get("websites")) or _text(row.get("website"))
         confidence = row.get("confidence")

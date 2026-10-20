@@ -11,7 +11,12 @@ import unittest
 
 from biz_intel import cli
 from biz_intel.models import Business, Claim, FieldProvenance
-from biz_intel.research import RESEARCH_COLUMNS, ResearchSession, export_research_session
+from biz_intel.research import (
+    RESEARCH_COLUMNS,
+    RefinementStep,
+    ResearchSession,
+    export_research_session,
+)
 
 
 class ResearchExportTests(unittest.TestCase):
@@ -42,6 +47,22 @@ class ResearchExportTests(unittest.TestCase):
                     evidence_url="https://neighbor.test/about",
                     observed_at=observed_at,
                 ),
+                Claim(
+                    key="business.longevity.minimum_years",
+                    value=15,
+                    source="first-party-website",
+                    source_record_id="neighbor.test",
+                    evidence_url="https://neighbor.test/about",
+                    observed_at=observed_at,
+                ),
+                Claim(
+                    key="business.operational_status",
+                    value="closed",
+                    source="first-party-website",
+                    source_record_id="neighbor.test",
+                    evidence_url="https://neighbor.test/closure",
+                    observed_at=observed_at,
+                ),
             ),
         )
         session = ResearchSession("Dentists", [business])
@@ -55,6 +76,8 @@ class ResearchExportTests(unittest.TestCase):
 
         self.assertEqual(tuple(rows[0]), RESEARCH_COLUMNS)
         self.assertEqual(rows[0]["ownership_assessment"], "likely_independent")
+        self.assertEqual(rows[0]["longevity_minimum_years"], "15")
+        self.assertEqual(rows[0]["operational_status"], "closed")
         self.assertEqual(rows[0]["discovery_sources"], "overture | google")
         self.assertEqual(rows[0]["medi_cal_dental_enrolled"], "unknown")
         self.assertIn("https://neighbor.test/contact", rows[0]["evidence_urls"])
@@ -75,6 +98,48 @@ class ResearchExportTests(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(rows[0]["ownership_assessment"], "unclear")
         self.assertEqual(len(restored.refinements), 0)
+
+    def test_cli_can_export_only_latest_instruction_matches(self) -> None:
+        observed_at = datetime(2026, 10, 20, tzinfo=timezone.utc)
+        matched = Business(
+            name="Matched",
+            claims=(
+                Claim(
+                    key="program.medi_cal_dental_ffs_enrolled",
+                    value=True,
+                    source="official",
+                    source_record_id="1234567890",
+                    evidence_url="https://example.test/dataset",
+                    observed_at=observed_at,
+                ),
+            ),
+        )
+        session = ResearchSession("Dentists", [matched, Business(name="Unknown")])
+        session.refinements.append(
+            RefinementStep(
+                instruction="Which accept Medi-Cal?",
+                plugin="medi-cal-dental-enrollment",
+                before_count=2,
+                after_count=2,
+                applied_at=observed_at,
+            )
+        )
+
+        with TemporaryDirectory() as directory:
+            session_path = session.save(Path(directory) / "session.json")
+            destination = Path(directory) / "matches.json"
+            exit_code = cli.main(
+                [
+                    "research-export",
+                    str(session_path),
+                    str(destination),
+                    "--matches",
+                ]
+            )
+            rows = json.loads(destination.read_text())
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual([row["name"] for row in rows], ["Matched"])
 
     def test_rejects_an_ambiguous_export_extension(self) -> None:
         with self.assertRaisesRegex(ValueError, "csv or .json"):

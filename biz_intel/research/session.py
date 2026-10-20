@@ -21,6 +21,23 @@ class RefinementStep:
     after_count: int
     applied_at: datetime
     note: str = ""
+    details: tuple[dict[str, object], ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class CompositionStep:
+    """Audit entry for one supplemental result set attached to a session."""
+
+    source: str
+    source_file: str
+    record_count: int
+    matched_count: int
+    ambiguous_count: int
+    candidate_count: int
+    website_count: int
+    applied_at: datetime
+    contact_count: int = 0
+    matches: tuple[dict[str, object], ...] = ()
 
 
 @dataclass(slots=True)
@@ -32,6 +49,7 @@ class ResearchSession:
     session_id: str = field(default_factory=lambda: uuid4().hex[:12])
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     refinements: list[RefinementStep] = field(default_factory=list)
+    compositions: list[CompositionStep] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         if not self.request.strip():
@@ -47,6 +65,7 @@ class ResearchSession:
             "created_at": self.created_at.isoformat(),
             "businesses": [business.to_dict() for business in self.businesses],
             "refinements": [asdict(step) for step in self.refinements],
+            "compositions": [asdict(step) for step in self.compositions],
         }
         path.write_text(json.dumps(payload, indent=2, default=_json_default))
         return path
@@ -71,9 +90,20 @@ class ResearchSession:
                         **{
                             **item,
                             "applied_at": datetime.fromisoformat(item["applied_at"]),
+                            "details": tuple(item.get("details", ())),
                         }
                     )
                     for item in payload["refinements"]
+                ],
+                compositions=[
+                    CompositionStep(
+                        **{
+                            **item,
+                            "applied_at": datetime.fromisoformat(item["applied_at"]),
+                            "matches": tuple(item.get("matches", ())),
+                        }
+                    )
+                    for item in payload.get("compositions", ())
                 ],
             )
         except (KeyError, TypeError, ValueError) as exc:

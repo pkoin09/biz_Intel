@@ -71,17 +71,60 @@ class CrossSourceMatcher:
         outcomes: list[CrossSourceMatch] = []
         for supplemental_source in self.supplemental_sources:
             supplemental = [item for item in businesses if item.source == supplemental_source]
-            for primary_item in primary:
-                exact = [
+            exact_by_primary = {
+                id(primary_item): [
                     (item, _strong_fields(primary_item, item))
                     for item in supplemental
                     if _strong_fields(primary_item, item)
                 ]
-                if len(exact) == 1:
+                for primary_item in primary
+            }
+            for item in supplemental:
+                identifier_matches = {
+                    primary_id
+                    for primary_id, candidates in exact_by_primary.items()
+                    if any(
+                        candidate is item and "source_id" in fields
+                        for candidate, fields in candidates
+                    )
+                }
+                if not identifier_matches:
+                    continue
+                for primary_id, candidates in exact_by_primary.items():
+                    exact_by_primary[primary_id] = [
+                        (candidate, fields)
+                        for candidate, fields in candidates
+                        if candidate is not item
+                        or primary_id in identifier_matches
+                    ]
+            primary_count_by_supplemental = {
+                id(item): sum(
+                    any(candidate is item for candidate, _fields in candidates)
+                    for candidates in exact_by_primary.values()
+                )
+                for item in supplemental
+            }
+            for primary_item in primary:
+                exact = exact_by_primary[id(primary_item)]
+                if (
+                    len(exact) == 1
+                    and primary_count_by_supplemental[id(exact[0][0])] == 1
+                ):
                     item, fields = exact[0]
+                    if "source_id" in fields and _identity_conflicts(primary_item, item):
+                        outcomes.append(_match(primary_item, item, "candidate", fields))
+                        continue
+                    if fields == ("phone",):
+                        if _same_name_and_address(primary_item, item):
+                            fields = ("phone", "name", "address")
+                        else:
+                            outcomes.append(
+                                _match(primary_item, item, "candidate", fields)
+                            )
+                            continue
                     outcomes.append(_match(primary_item, item, "matched", fields))
                     continue
-                if len(exact) > 1:
+                if exact:
                     outcomes.extend(
                         _match(primary_item, item, "ambiguous", fields)
                         for item, fields in exact
@@ -110,7 +153,12 @@ def _match(
     decision: MatchDecision,
     fields: tuple[str, ...],
 ) -> CrossSourceMatch:
-    method = "exact_" + "_and_".join(fields) if decision != "candidate" else "exact_name_address_candidate"
+    if decision == "candidate" and fields == ("name", "address"):
+        method = "exact_name_address_candidate"
+    else:
+        method = "exact_" + "_and_".join(fields)
+        if decision == "candidate":
+            method += "_candidate"
     return CrossSourceMatch(
         primary=_reference(primary),
         supplemental=_reference(supplemental),
@@ -178,6 +226,24 @@ def _same_name_and_address(left: Business, right: Business) -> bool:
         _normalized_text(left.state) == _normalized_text(right.state),
         bool(left.name and left.address and left.city and left.state),
     ))
+
+
+def _identity_conflicts(left: Business, right: Business) -> bool:
+    """Reject an asserted identifier when both supplied identity signals disagree."""
+
+    names_conflict = bool(left.name and right.name) and (
+        _normalized_text(left.name) != _normalized_text(right.name)
+    )
+    addresses_conflict = all(
+        (left.address, left.city, left.state, right.address, right.city, right.state)
+    ) and not all(
+        (
+            _normalized_text(left.address) == _normalized_text(right.address),
+            _normalized_text(left.city) == _normalized_text(right.city),
+            _normalized_text(left.state) == _normalized_text(right.state),
+        )
+    )
+    return names_conflict and addresses_conflict
 
 
 def _normalized_text(value: str) -> str:

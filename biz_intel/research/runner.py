@@ -42,6 +42,7 @@ class ResearchRunner:
                 after_count=len(session.businesses),
                 applied_at=datetime.now(timezone.utc),
                 note=result.note,
+                details=result.details,
             )
         )
         return session

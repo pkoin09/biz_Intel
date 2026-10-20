@@ -1,7 +1,7 @@
 [project]
 name = "biz-intel"
 version = "0.7.0"
-description = "Add your description here"
+description = "Evidence-first workspace for reusable business research"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

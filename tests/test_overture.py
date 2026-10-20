@@ -29,7 +29,11 @@ class OvertureSnapshotSourceTests(unittest.TestCase):
                     SELECT
                         '08f1example' AS id,
                         {{'primary': {name_sql}}} AS names,
-                        {{'primary': 'dentist'}} AS categories,
+                        'dentist' AS basic_category,
+                        {{'primary': 'general_dentistry',
+                          'hierarchy': ['health_care', 'outpatient_care_facility',
+                                        'dental_clinic', 'general_dentistry'],
+                          'alternates': NULL::VARCHAR[]}} AS taxonomy,
                         [{{'freeform': '1 Main St', 'locality': 'San Jose',
                           'region': 'CA', 'postcode': '95112', 'country': 'US'}}] AS addresses,
                         ['+14085550100'] AS phones,
@@ -65,6 +69,7 @@ class OvertureSnapshotSourceTests(unittest.TestCase):
         business = next(OvertureSnapshotSource(self.path).extract())
 
         self.assertEqual(business.name, "Sample Dental Group")
+        self.assertEqual(business.category, "general_dentistry")
         self.assertEqual(business.city, "San Jose")
         self.assertEqual(business.source_ids, {"overture_id": "08f1example"})
         self.assertEqual(business.source_url, "https://example.test/overture/2026-10-01.0")

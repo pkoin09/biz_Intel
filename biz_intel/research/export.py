@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+from collections.abc import Sequence
 from pathlib import Path
 
 from biz_intel.models import Business
@@ -29,6 +30,8 @@ RESEARCH_COLUMNS = (
     "twitter",
     "medi_cal_dental_enrolled",
     "ownership_assessment",
+    "longevity_minimum_years",
+    "operational_status",
     "discovery_sources",
     "source_url",
     "evidence_urls",
@@ -38,6 +41,8 @@ RESEARCH_COLUMNS = (
 def export_research_session(
     session: ResearchSession,
     destination: str | Path,
+    *,
+    businesses: Sequence[Business] | None = None,
 ) -> Path:
     """Write a stable client-facing projection without altering the session."""
 
@@ -45,7 +50,8 @@ def export_research_session(
     if path.suffix.casefold() not in {".csv", ".json"}:
         raise ValueError("Research export must use a .csv or .json destination.")
     path.parent.mkdir(parents=True, exist_ok=True)
-    rows = [_row(business) for business in session.businesses]
+    selected = session.businesses if businesses is None else businesses
+    rows = [_row(business) for business in selected]
     if path.suffix.casefold() == ".json":
         path.write_text(json.dumps(rows, indent=2))
     elif rows:
@@ -68,6 +74,16 @@ def _row(business: Business) -> dict[str, object]:
         business,
         "ownership.independence_assessment",
         default="unclear",
+    )
+    longevity = _claim_value(
+        business,
+        "business.longevity.minimum_years",
+        default="unknown",
+    )
+    operational_status = _claim_value(
+        business,
+        "business.operational_status",
+        default="unknown",
     )
     evidence_urls = {
         evidence.evidence_url
@@ -95,6 +111,8 @@ def _row(business: Business) -> dict[str, object]:
         "twitter": business.twitter,
         "medi_cal_dental_enrolled": medi_cal,
         "ownership_assessment": ownership,
+        "longevity_minimum_years": longevity,
+        "operational_status": operational_status,
         "discovery_sources": " | ".join(
             business.discovery_sources or ((business.source,) if business.source else ())
         ) or "unknown",
